@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vérificateur de Fichiers</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #dc2626 0%, #fbbf24 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #f59e0b 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .logo-container {
+            margin-bottom: 15px;
+        }
+
+        .logo {
+            max-height: 80px;
+            max-width: 200px;
+            object-fit: contain;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            text-decoration: none;
+            color: #495057;
+            font-weight: 600;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-tab:hover {
+            background: #fef3c7;
+        }
+
+        .nav-tab.active {
+            color: #dc2626;
+            border-bottom-color: #dc2626;
+            background: white;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="file"],
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #dc2626;
+        }
+
+        .form-group input[type="file"] {
+            cursor: pointer;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #dc2626 0%, #f59e0b 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            display: none;
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #dc2626 0%, #fbbf24 100%);
+            animation: progress 2s ease-in-out infinite;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+
+        .results {
+            display: none;
+            margin-top: 40px;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #fbbf24;
+        }
+
+        .summary-card h3 {
+            font-size: 14px;
+            color: #92400e;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .summary-card p {
+            font-size: 32px;
+            font-weight: bold;
+            color: #dc2626;
+        }
+
+        .summary-card.found p {
+            color: #16a34a;
+        }
+
+        .summary-card.not-found p {
+            color: #dc2626;
+        }
+
+        .download-btn {
+            background: #16a34a;
+            margin-bottom: 20px;
+        }
+
+        .download-btn:hover {
+            box-shadow: 0 10px 25px rgba(22, 163, 74, 0.4);
+        }
+
+        .results-table {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        table th {
+            background: #fef3c7;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #92400e;
+            border-bottom: 2px solid #fbbf24;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #fde68a;
+        }
+
+        table tr:hover {
+            background: #fef9e7;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.found {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.not-found {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .info-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+
+        .info-box h4 {
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            color: #78350f;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <img src="/assets/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+            </div>
+            <h1>📁 Vérificateur de Fichiers</h1>
+            <p>Vérifiez l'existence de fichiers sur plusieurs emplacements réseau</p>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab active">
+                🔍 Vérification de Fichiers
+            </a>
+            <a href="/transfer" class="nav-tab">
+                📤 Transfert de Fichiers
+            </a>
+            <a href="/auth" class="nav-tab">
+                🔐 Authentification
+            </a>
+        </div>
+
+        <div class="content">
+            <div class="info-box">
+                <h4>ℹ️ Comment ça marche</h4>
+                <p>
+                    Cette fonctionnalité vous permet de vérifier l'existence d'un fichier sur plusieurs serveurs en une seule fois. 
+                    L'application utilise un fichier Excel du dossier <strong>data</strong> qui contient 
+                    la liste des serveurs (colonnes CodeMag et ipaddress).
+                </p>
+            </div>
+
+            <div class="alert error" id="errorAlert"></div>
+            <div class="alert success" id="successAlert"></div>
+
+            <form id="uploadForm">
+                <div class="auth-section">
+                    <div class="auth-title">🔑 Authentification Réseau (Optionnel)</div>
+                    <div class="two-column">
+                        <div class="form-group">
+                            <label for="username">Nom d'utilisateur</label>
+                            <input type="text" id="username" name="username" placeholder="DOMAINE\utilisateur">
+                            <p class="help-text">Laissez vide si aucune authentification requise</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Mot de passe</label>
+                            <input type="password" id="password" name="password" placeholder="Mot de passe">
+                            <p class="help-text">Laissez vide si aucune authentification requise</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="excelFile">Fichier Excel (du dossier data) *</label>
+                    <select id="excelFile" name="excel_file" required>
+                        <option value="">Chargement des fichiers Excel...</option>
+                    </select>
+                    <p class="help-text">Sélectionnez un fichier Excel avec les colonnes CodeMag et ipaddress depuis le dossier data</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="filename">Nom du Fichier à Vérifier *</label>
+                    <input type="text" id="filename" name="filename" placeholder="exemple.txt" required>
+                    <p class="help-text">Entrez le nom exact du fichier à rechercher (ex: rapport.pdf, donnees.csv)</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="directoryPath">Chemin du Répertoire *</label>
+                    <input type="text" id="directoryPath" name="directory_path" placeholder="partage\documents" required>
+                    <p class="help-text">Chemin réseau sans backslash au début (ex: partage\documents ou C$\donnees)</p>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    🔍 Vérifier les Fichiers
+                </button>
+            </form>
+
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-bar-fill"></div>
+            </div>
+
+            <div class="results" id="results">
+                <div class="summary">
+                    <div class="summary-card">
+                        <h3>Total Vérifié</h3>
+                        <p id="totalCount">0</p>
+                    </div>
+                    <div class="summary-card found">
+                        <h3>Trouvés</h3>
+                        <p id="foundCount">0</p>
+                    </div>
+                    <div class="summary-card not-found">
+                        <h3>Non Trouvés</h3>
+                        <p id="notFoundCount">0</p>
+                    </div>
+                </div>
+
+                <button class="btn download-btn" id="downloadBtn">
+                    📥 Télécharger le Rapport Complet
+                </button>
+
+                <div class="results-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>CodeMag</th>
+                                <th>Adresse IP</th>
+                                <th>Nom du Fichier</th>
+                                <th>Statut</th>
+                                <th>Chemin du Fichier</th>
+                                <th>Taille</th>
+                                <th>Dernière Modification</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let reportFilename = '';
+
+        // Charger les fichiers Excel du dossier data au chargement de la page
+        async function loadExcelFiles() {
+            try {
+                const response = await fetch('/get-excel-files');
+                const data = await response.json();
+
+                const select = document.getElementById('excelFile');
+                select.innerHTML = '<option value="">-- Sélectionner un Fichier Excel --</option>';
+
+                if (data.files && data.files.length > 0) {
+                    data.files.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file;
+                        option.textContent = file;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Aucun fichier Excel trouvé dans le dossier data</option>';
+                    showError('Aucun fichier Excel trouvé dans le dossier data. Veuillez ajouter des fichiers Excel dans le dossier data.');
+                }
+            } catch (error) {
+                document.getElementById('excelFile').innerHTML = '<option value="">Erreur de chargement des fichiers</option>';
+                showError('Erreur lors du chargement des fichiers Excel : ' + error.message);
+            }
+        }
+
+        // Charger les fichiers au chargement de la page
+        loadExcelFiles();
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const excelFile = document.getElementById('excelFile').value;
+            const filename = document.getElementById('filename').value;
+            const directoryPath = document.getElementById('directoryPath').value;
+
+            if (!excelFile) {
+                showError('Veuillez sélectionner un fichier Excel');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('excel_file', excelFile);
+            formData.append('filename', filename);
+            formData.append('directory_path', directoryPath);
+
+            // Afficher la barre de progression
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('results').style.display = 'none';
+            hideAlerts();
+
+            try {
+                const response = await fetch('/check-files', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                document.getElementById('progressBar').style.display = 'none';
+                document.getElementById('submitBtn').disabled = false;
+
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+
+                // Enregistrer le nom du rapport
+                reportFilename = data.report_file;
+
+                // Mettre à jour le résumé
+                document.getElementById('totalCount').textContent = data.summary.total;
+                document.getElementById('foundCount').textContent = data.summary.found;
+                document.getElementById('notFoundCount').textContent = data.summary.not_found;
+
+                // Afficher les résultats
+                displayResults(data.results);
+
+                // Afficher la section des résultats
+                document.getElementById('results').style.display = 'block';
+                showSuccess('Vérification terminée avec succès !');
+
+            } catch (error) {
+                document.getElementById('progressBar').style.display = 'none';
+                document.getElementById('submitBtn').disabled = false;
+                showError('Une erreur s\'est produite : ' + error.message);
+            }
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (reportFilename) {
+                window.location.href = `/download/${reportFilename}`;
+            }
+        });
+
+        function displayResults(results) {
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+
+            results.forEach(result => {
+                const row = document.createElement('tr');
+                const statusClass = result.Exists === 'Yes' ? 'found' : 'not-found';
+                const statusText = result.Exists === 'Yes' ? '✓ Trouvé' : '✗ Non Trouvé';
+                const fileSize = result.FileSize ? formatFileSize(result.FileSize) : '-';
+                const lastModified = result.LastModified || '-';
+
+                row.innerHTML = `
+                    <td>${result.CodeMag}</td>
+                    <td>${result.IPAddress}</td>
+                    <td>${result.FileName}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td><small>${result.FilePath}</small></td>
+                    <td>${fileSize}</td>
+                    <td>${lastModified}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Octets';
+            const k = 1024;
+            const sizes = ['Octets', 'Ko', 'Mo', 'Go'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            alert.textContent = message;
+            alert.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const alert = document.getElementById('successAlert');
+            alert.textContent = message;
+            alert.style.display = 'block';
+        }
+
+        function hideAlerts() {
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('successAlert').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

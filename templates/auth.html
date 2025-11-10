@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test d'Authentification Réseau</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #dc2626 0%, #fbbf24 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #f59e0b 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .logo-container {
+            margin-bottom: 15px;
+        }
+
+        .logo {
+            max-height: 80px;
+            max-width: 200px;
+            object-fit: contain;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            text-decoration: none;
+            color: #495057;
+            font-weight: 600;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-tab:hover {
+            background: #fef3c7;
+        }
+
+        .nav-tab.active {
+            color: #dc2626;
+            border-bottom-color: #dc2626;
+            background: white;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="password"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="password"]:focus {
+            outline: none;
+            border-color: #dc2626;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #dc2626 0%, #f59e0b 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6366f1;
+        }
+
+        .btn-secondary:hover {
+            background: #4f46e5;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-danger {
+            background: #dc2626;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+            box-shadow: 0 10px 25px rgba(220, 38, 38, 0.4);
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert.info {
+            background: #dbeafe;
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .info-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+
+        .info-box h4 {
+            color: #92400e;
+            margin-bottom: 8px;
+        }
+
+        .info-box p {
+            color: #78350f;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .auth-section {
+            background: #fef3c7;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #fbbf24;
+        }
+
+        .auth-title {
+            color: #dc2626;
+            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .connections-list {
+            margin-top: 30px;
+        }
+
+        .connection-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 2px solid #fbbf24;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .connection-info {
+            flex: 1;
+        }
+
+        .connection-info strong {
+            color: #dc2626;
+        }
+
+        .connection-info small {
+            display: block;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .test-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .test-buttons button {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <img src="/assets/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+            </div>
+            <h1>🔐 Test d'Authentification Réseau</h1>
+            <p>Testez vos identifiants réseau et gérez les connexions</p>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/" class="nav-tab">
+                🔍 Vérification de Fichiers
+            </a>
+            <a href="/transfer" class="nav-tab">
+                📤 Transfert de Fichiers
+            </a>
+            <a href="/auth" class="nav-tab active">
+                🔐 Authentification
+            </a>
+        </div>
+
+        <div class="content">
+            <div class="info-box">
+                <h4>ℹ️ À propos de cette fonctionnalité</h4>
+                <p>
+                    Cette page vous permet de tester vos identifiants réseau avant de lancer des opérations de vérification ou de transfert. 
+                    Les identifiants testés ici peuvent être utilisés sur les autres pages pour accéder aux partages réseau protégés.
+                </p>
+            </div>
+
+            <div class="alert" id="statusMessage"></div>
+
+            <!-- Authentication Section -->
+            <div class="auth-section">
+                <div class="auth-title">🔑 Identifiants Réseau</div>
+                <div class="two-column">
+                    <div class="form-group">
+                        <label for="username">Nom d'utilisateur *</label>
+                        <input type="text" id="username" placeholder="DOMAINE\utilisateur ou utilisateur">
+                        <p class="help-text">Nom d'utilisateur du domaine pour l'accès réseau</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Mot de passe *</label>
+                        <input type="password" id="password" placeholder="Mot de passe">
+                        <p class="help-text">Mot de passe réseau</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Connection Section -->
+            <div class="form-group">
+                <label for="testIp">Adresse IP ou Nom du Serveur</label>
+                <input type="text" id="testIp" placeholder="ex: 192.168.1.100 ou serveur01">
+                <p class="help-text">Entrez l'adresse IP ou le nom d'un serveur pour tester la connexion</p>
+            </div>
+
+            <div class="test-buttons">
+                <button class="btn btn-secondary" id="testBtn" onclick="testConnection()">
+                    🔌 Tester la Connexion
+                </button>
+                <button class="btn btn-danger" id="disconnectBtn" onclick="disconnectAll()">
+                    ❌ Déconnecter Tout
+                </button>
+            </div>
+
+            <!-- Active Connections -->
+            <div class="connections-list" id="connectionsList">
+                <h3 style="margin-bottom: 15px;">Connexions Actives</h3>
+                <div id="connectionsContainer">
+                    <p style="color: #666; text-align: center; padding: 20px;">Aucune connexion active</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showMessage(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `alert ${type}`;
+            statusEl.style.display = 'block';
+            
+            // Auto-hide after 5 seconds for success messages
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        async function testConnection() {
+            const testBtn = document.getElementById('testBtn');
+            const testIp = document.getElementById('testIp').value.trim();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!testIp) {
+                showMessage('⚠️ Veuillez entrer une adresse IP ou un nom de serveur', 'error');
+                return;
+            }
+
+            if (!username || !password) {
+                showMessage('⚠️ Veuillez entrer le nom d\'utilisateur et le mot de passe', 'error');
+                return;
+            }
+
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<span class="spinner"></span> Test en cours...';
+
+            try {
+                const response = await fetch('/test-connection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ip_address: testIp,
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(`✅ ${data.message}`, 'success');
+                    loadActiveConnections();
+                } else {
+                    showMessage(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Erreur lors du test de connexion: ${error.message}`, 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = '🔌 Tester la Connexion';
+            }
+        }
+
+        async function disconnectAll() {
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            
+            disconnectBtn.disabled = true;
+            disconnectBtn.innerHTML = '<span class="spinner"></span> Déconnexion...';
+
+            try {
+                const response = await fetch('/disconnect-all', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showMessage(`✅ ${data.message}`, 'success');
+                    loadActiveConnections();
+                } else {
+                    showMessage(`❌ Erreur: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`❌ Erreur lors de la déconnexion: ${error.message}`, 'error');
+            } finally {
+                disconnectBtn.disabled = false;
+                disconnectBtn.textContent = '❌ Déconnecter Tout';
+            }
+        }
+
+        async function loadActiveConnections() {
+            try {
+                const response = await fetch('/active-connections');
+                const data = await response.json();
+
+                const container = document.getElementById('connectionsContainer');
+
+                if (data.success && data.connections.length > 0) {
+                    container.innerHTML = data.connections.map(conn => `
+                        <div class="connection-item">
+                            <div class="connection-info">
+                                <strong>\\\\${conn.ip}</strong>
+                                <small>Utilisateur: ${conn.username} | Connecté à: ${conn.connected_at}</small>
+                            </div>
+                            <div style="color: #16a34a; font-weight: bold;">✓ Actif</div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">Aucune connexion active</p>';
+                }
+            } catch (error) {
+                console.error('Error loading connections:', error);
+            }
+        }
+
+        // Load active connections on page load
+        loadActiveConnections();
+
+        // Refresh connections every 10 seconds
+        setInterval(loadActiveConnections, 10000);
+
+        // Allow Enter key to trigger test
+        document.getElementById('testIp').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                testConnection();
+            }
+        });
+
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                testConnection();
+            }
+        });
+    </script>
+</body>
+</html>
