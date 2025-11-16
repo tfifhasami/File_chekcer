@@ -359,33 +359,21 @@
                     L'application utilise un fichier Excel du dossier <strong>data</strong> qui contient 
                     la liste des serveurs (colonnes CodeMag et ipaddress).
                 </p>
+                <p style="margin-top: 10px;">
+                    <strong>💡 Astuce:</strong> Si vos serveurs nécessitent une authentification, 
+                    utilisez l'onglet <strong>🔐 Authentification</strong> pour vous connecter avant de lancer le transfert.
+                </p>
             </div>
 
             <div class="alert error" id="errorAlert"></div>
             <div class="alert success" id="successAlert"></div>
 
             <form id="transferForm">
-                <div class="auth-section">
-                    <div class="auth-title">🔑 Authentification Réseau (Optionnel)</div>
-                    <div class="two-column">
-                        <div class="form-group">
-                            <label for="username">Nom d'utilisateur</label>
-                            <input type="text" id="username" name="username" placeholder="DOMAINE\utilisateur">
-                            <p class="help-text">Laissez vide si aucune authentification requise</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Mot de passe</label>
-                            <input type="password" id="password" name="password" placeholder="Mot de passe">
-                            <p class="help-text">Laissez vide si aucune authentification requise</p>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="form-group">
-                    <label for="fileToTransfer">Fichier à Transférer *</label>
-                    <input type="file" id="fileToTransfer" name="file_to_transfer" required>
-                    <p class="help-text">Sélectionnez le fichier ou l'archive ZIP à transférer vers plusieurs serveurs</p>
-                </div>
+    <label for="filesToTransfer">Fichiers à Transférer *</label>
+    <input type="file" id="filesToTransfer" name="files_to_transfer" multiple required>
+    <p class="help-text">Sélectionnez un ou plusieurs fichiers ou archives ZIP à transférer vers plusieurs serveurs (Maintenez Ctrl pour sélectionner plusieurs fichiers)</p>
+</div>
 
                 <div class="form-group">
                     <label for="excelFile">Fichier Excel (du dossier data) *</label>
@@ -482,66 +470,75 @@
         // Charger les fichiers au chargement de la page
         loadExcelFiles();
 
-        document.getElementById('transferForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+document.getElementById('transferForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-            const formData = new FormData();
-            const fileInput = document.getElementById('fileToTransfer');
-            const excelFile = document.getElementById('excelFile').value;
-            const directoryPath = document.getElementById('directoryPath').value;
+    const formData = new FormData();
+    const filesInput = document.getElementById('filesToTransfer');
+    const excelFile = document.getElementById('excelFile').value;
+    const directoryPath = document.getElementById('directoryPath').value;
 
-            if (!excelFile) {
-                showError('Veuillez sélectionner un fichier Excel');
-                return;
-            }
+    if (!excelFile) {
+        showError('Veuillez sélectionner un fichier Excel');
+        return;
+    }
 
-            formData.append('file_to_transfer', fileInput.files[0]);
-            formData.append('excel_file', excelFile);
-            formData.append('directory_path', directoryPath);
+    if (filesInput.files.length === 0) {
+        showError('Veuillez sélectionner au moins un fichier à transférer');
+        return;
+    }
 
-            // Afficher la barre de progression
-            document.getElementById('progressBar').style.display = 'block';
-            document.getElementById('submitBtn').disabled = true;
-            document.getElementById('results').style.display = 'none';
-            hideAlerts();
+    // Add all selected files to FormData
+    for (let i = 0; i < filesInput.files.length; i++) {
+        formData.append('files_to_transfer', filesInput.files[i]);
+    }
+    
+    formData.append('excel_file', excelFile);
+    formData.append('directory_path', directoryPath);
 
-            try {
-                const response = await fetch('/transfer-file', {
-                    method: 'POST',
-                    body: formData
-                });
+    // Afficher la barre de progression
+    document.getElementById('progressBar').style.display = 'block';
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('results').style.display = 'none';
+    hideAlerts();
 
-                const data = await response.json();
-
-                document.getElementById('progressBar').style.display = 'none';
-                document.getElementById('submitBtn').disabled = false;
-
-                if (data.error) {
-                    showError(data.error);
-                    return;
-                }
-
-                // Enregistrer le nom du rapport
-                reportFilename = data.report_file;
-
-                // Mettre à jour le résumé
-                document.getElementById('totalCount').textContent = data.summary.total;
-                document.getElementById('successCount').textContent = data.summary.successful;
-                document.getElementById('failedCount').textContent = data.summary.failed;
-
-                // Afficher les résultats
-                displayResults(data.results);
-
-                // Afficher la section des résultats
-                document.getElementById('results').style.display = 'block';
-                showSuccess('Transfert de fichier terminé ! Consultez les résultats ci-dessous.');
-
-            } catch (error) {
-                document.getElementById('progressBar').style.display = 'none';
-                document.getElementById('submitBtn').disabled = false;
-                showError('Une erreur s\'est produite : ' + error.message);
-            }
+    try {
+        const response = await fetch('/transfer-files', {  // Changed endpoint
+            method: 'POST',
+            body: formData
         });
+
+        const data = await response.json();
+
+        document.getElementById('progressBar').style.display = 'none';
+        document.getElementById('submitBtn').disabled = false;
+
+        if (data.error) {
+            showError(data.error);
+            return;
+        }
+
+        // Enregistrer le nom du rapport
+        reportFilename = data.report_file;
+
+        // Mettre à jour le résumé
+        document.getElementById('totalCount').textContent = data.summary.total;
+        document.getElementById('successCount').textContent = data.summary.successful;
+        document.getElementById('failedCount').textContent = data.summary.failed;
+
+        // Afficher les résultats
+        displayResults(data.results);
+
+        // Afficher la section des résultats
+        document.getElementById('results').style.display = 'block';
+        showSuccess(`Transfert de ${filesInput.files.length} fichier(s) terminé ! Consultez les résultats ci-dessous.`);
+
+    } catch (error) {
+        document.getElementById('progressBar').style.display = 'none';
+        document.getElementById('submitBtn').disabled = false;
+        showError('Une erreur s\'est produite : ' + error.message);
+    }
+});
 
         document.getElementById('downloadBtn').addEventListener('click', () => {
             if (reportFilename) {

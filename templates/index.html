@@ -338,28 +338,16 @@
                     L'application utilise un fichier Excel du dossier <strong>data</strong> qui contient 
                     la liste des serveurs (colonnes CodeMag et ipaddress).
                 </p>
+                <p style="margin-top: 10px;">
+                    <strong>💡 Astuce:</strong> Si vos serveurs nécessitent une authentification, 
+                    utilisez l'onglet <strong>🔐 Authentification</strong> pour vous connecter avant de lancer la vérification.
+                </p>
             </div>
 
             <div class="alert error" id="errorAlert"></div>
             <div class="alert success" id="successAlert"></div>
 
             <form id="uploadForm">
-                <div class="auth-section">
-                    <div class="auth-title">🔑 Authentification Réseau (Optionnel)</div>
-                    <div class="two-column">
-                        <div class="form-group">
-                            <label for="username">Nom d'utilisateur</label>
-                            <input type="text" id="username" name="username" placeholder="DOMAINE\utilisateur">
-                            <p class="help-text">Laissez vide si aucune authentification requise</p>
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Mot de passe</label>
-                            <input type="password" id="password" name="password" placeholder="Mot de passe">
-                            <p class="help-text">Laissez vide si aucune authentification requise</p>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label for="excelFile">Fichier Excel (du dossier data) *</label>
                     <select id="excelFile" name="excel_file" required>

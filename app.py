@@ -12,6 +12,13 @@ import socket
 import traceback
 import subprocess
 
+# ===== DEFAULT CREDENTIALS CONFIGURATION =====
+# Set your default Windows credentials here
+DEFAULT_USERNAME = "trf"  # e.g., "DOMAIN\\admin" or "admin"
+DEFAULT_PASSWORD = "trf"  # Your network password
+USE_DEFAULT_CREDENTIALS = True  # Set to False to disable auto-authentication
+# =============================================
+
 # Determine if we're running as a PyInstaller bundle
 if getattr(sys, 'frozen', False):
     # Running as compiled executable
@@ -63,12 +70,30 @@ logger = logging.getLogger(__name__)
 active_connections = {}
 
 
-def connect_to_network_share(ip_address, username, password):
+def get_credentials(username=None, password=None):
+    """
+    Get credentials - use provided ones or fall back to defaults
+    Returns: tuple (username, password)
+    """
+    if username and password:
+        return username, password
+    elif USE_DEFAULT_CREDENTIALS:
+        logger.info("Using default credentials")
+        return DEFAULT_USERNAME, DEFAULT_PASSWORD
+    else:
+        return None, None
+
+
+def connect_to_network_share(ip_address, username=None, password=None):
     """
     Establish a network connection using net use command
+    Uses default credentials if none provided and USE_DEFAULT_CREDENTIALS is True
     Returns: dict with success status and message
     """
     try:
+        # Get credentials (use defaults if not provided)
+        username, password = get_credentials(username, password)
+        
         # Construct the network path
         if ip_address.startswith('\\\\'):
             network_path = ip_address
@@ -76,7 +101,7 @@ def connect_to_network_share(ip_address, username, password):
             network_path = f'\\\\{ip_address}'
         
         # Check if already connected
-        connection_key = f"{ip_address}_{username}"
+        connection_key = f"{ip_address}_{username}" if username else ip_address
         if connection_key in active_connections:
             logger.info(f"Already connected to {network_path}")
             return {'success': True, 'message': 'Déjà connecté'}
@@ -88,8 +113,10 @@ def connect_to_network_share(ip_address, username, password):
         # Build the net use command
         if username and password:
             connect_cmd = f'net use {network_path} /user:{username} {password}'
+            logger.info(f"Connecting to {network_path} with user: {username}")
         else:
             connect_cmd = f'net use {network_path}'
+            logger.info(f"Connecting to {network_path} without credentials")
         
         # Execute the command
         result = subprocess.run(
@@ -103,7 +130,7 @@ def connect_to_network_share(ip_address, username, password):
         if result.returncode == 0:
             active_connections[connection_key] = {
                 'ip': ip_address,
-                'username': username,
+                'username': username or 'default',
                 'connected_at': datetime.now()
             }
             logger.info(f"Successfully connected to {network_path}")
@@ -149,10 +176,14 @@ def disconnect_from_network_share(ip_address):
 def check_file_exists(ip_address, directory_path, filename, username=None, password=None):
     """
     Check if a file exists on a network path with authentication
+    Uses default credentials if none provided
     Returns: dict with status and details
     """
     try:
-        # Connect to the network share first if credentials provided
+        # Get credentials (use defaults if not provided)
+        username, password = get_credentials(username, password)
+        
+        # Connect to the network share first if credentials available
         if username and password:
             connection_result = connect_to_network_share(ip_address, username, password)
             
@@ -211,6 +242,7 @@ def check_file_exists(ip_address, directory_path, filename, username=None, passw
 def process_excel(file_path, filename_to_check, directory_path, username=None, password=None):
     """
     Process the uploaded Excel file and check for file existence
+    Uses default credentials if none provided
     """
     try:
         # Read Excel file
@@ -227,7 +259,7 @@ def process_excel(file_path, filename_to_check, directory_path, username=None, p
             code_mag = str(row['CodeMag'])
             ip_address = str(row['ipaddress'])
             
-            # Check file existence with authentication
+            # Check file existence (will use default credentials if none provided)
             result = check_file_exists(ip_address, directory_path, filename_to_check, username, password)
             
             results.append({
@@ -273,8 +305,12 @@ def get_excel_files_from_data():
 def transfer_file_to_servers(file_path, servers_excel, directory_path, username=None, password=None):
     """
     Transfer a file to multiple servers based on Excel file
+    Uses default credentials if none provided
     """
     try:
+        # Get credentials (use defaults if not provided)
+        username, password = get_credentials(username, password)
+        
         # Read Excel file
         df = pd.read_excel(servers_excel)
         
@@ -290,7 +326,7 @@ def transfer_file_to_servers(file_path, servers_excel, directory_path, username=
             code_mag = str(row['CodeMag'])
             ip_address = str(row['ipaddress'])
             
-            # Connect to the network share first if credentials provided
+            # Connect to the network share first if credentials available
             if username and password:
                 connection_result = connect_to_network_share(ip_address, username, password)
                 
@@ -429,7 +465,7 @@ def upload_file():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # Process the Excel file
+        # Process the Excel file (will use default credentials)
         result = process_excel(filepath, filename_to_check, directory_path)
         
         if 'error' in result:
@@ -491,8 +527,6 @@ def check_files():
         excel_filename = request.form.get('excel_file')
         filename_to_check = request.form.get('filename')
         directory_path = request.form.get('directory_path')
-        username = request.form.get('username')
-        password = request.form.get('password')
         
         if not excel_filename:
             return jsonify({'error': 'Veuillez sélectionner un fichier Excel'}), 400
@@ -509,8 +543,8 @@ def check_files():
         if not os.path.exists(excel_path):
             return jsonify({'error': f'Fichier Excel non trouvé: {excel_filename}'}), 400
         
-        # Process the Excel file with credentials
-        result = process_excel(excel_path, filename_to_check, directory_path, username, password)
+        # Process the Excel file (will use default credentials)
+        result = process_excel(excel_path, filename_to_check, directory_path)
         
         if 'error' in result:
             return jsonify({'error': result['error']}), 400
@@ -573,7 +607,197 @@ def download_report(filename):
         logger.error(f"Download error: {str(e)}")
         return jsonify({'error': str(e)}), 404
 
+@app.route('/transfer-files', methods=['POST'])
+def transfer_files():
+    """Transfer multiple files to servers"""
+    try:
+        # Check if files were uploaded
+        if 'files_to_transfer' not in request.files:
+            return jsonify({'error': 'No files uploaded'}), 400
+        
+        files = request.files.getlist('files_to_transfer')
+        excel_filename = request.form.get('excel_file')
+        directory_path = request.form.get('directory_path')
+        
+        # Validate files
+        valid_files = []
+        for file in files:
+            if file.filename != '':
+                valid_files.append(file)
+        
+        if len(valid_files) == 0:
+            return jsonify({'error': 'No files selected'}), 400
+        
+        if not excel_filename:
+            return jsonify({'error': 'Please select an Excel file'}), 400
+        
+        if not directory_path:
+            return jsonify({'error': 'Please specify the directory path'}), 400
+        
+        # Get Excel file path from data folder
+        excel_path = os.path.join(app.config['DATA_FOLDER'], excel_filename)
+        
+        if not os.path.exists(excel_path):
+            return jsonify({'error': f'Excel file not found: {excel_filename}'}), 400
+        
+        # Save uploaded files temporarily
+        temp_filepaths = []
+        for file in valid_files:
+            filename = secure_filename(file.filename)
+            temp_filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(temp_filepath)
+            temp_filepaths.append(temp_filepath)
+        
+        # Transfer all files (will use default credentials)
+        all_results = []
+        for temp_filepath in temp_filepaths:
+            result = transfer_files_to_servers(temp_filepath, excel_path, directory_path)
+            if 'error' not in result:
+                all_results.extend(result['results'])
+            else:
+                # If one file fails, log it but continue with others
+                logger.error(f"Error transferring file {temp_filepath}: {result['error']}")
+        
+        # Generate report
+        report_filename = f"transfer_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        report_path = os.path.join(app.config['REPORT_FOLDER'], report_filename)
+        
+        # Create DataFrame from all results
+        df_report = pd.DataFrame(all_results)
+        
+        # Save to Excel with formatting
+        with pd.ExcelWriter(report_path, engine='openpyxl') as writer:
+            df_report.to_excel(writer, sheet_name='Transfer Results', index=False)
+            
+            # Get workbook and worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['Transfer Results']
+            
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column = [cell for cell in column]
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(cell.value)
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column[0].column_letter].width = adjusted_width
+        
+        # Calculate summary
+        total_transfers = len(all_results)
+        successful = sum(1 for r in all_results if r['Status'] == 'Success')
+        failed = total_transfers - successful
+        
+        # Clean up temporary files
+        for temp_filepath in temp_filepaths:
+            try:
+                os.remove(temp_filepath)
+            except:
+                pass
+        
+        return jsonify({
+            'success': True,
+            'report_file': report_filename,
+            'summary': {
+                'total': total_transfers,
+                'successful': successful,
+                'failed': failed
+            },
+            'results': all_results
+        })
+        
+    except Exception as e:
+        logger.error(f"Transfer files error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
+
+def transfer_files_to_servers(file_path, servers_excel, directory_path, username=None, password=None):
+    """
+    Transfer a file to multiple servers based on Excel file
+    Uses default credentials if none provided
+    """
+    try:
+        # Get credentials (use defaults if not provided)
+        username, password = get_credentials(username, password)
+        
+        # Read Excel file
+        df = pd.read_excel(servers_excel)
+        
+        # Validate required columns
+        if 'CodeMag' not in df.columns or 'ipaddress' not in df.columns:
+            return {'error': 'Excel must contain "CodeMag" and "ipaddress" columns'}
+        
+        results = []
+        total = len(df)
+        filename = os.path.basename(file_path)
+        
+        for index, row in df.iterrows():
+            code_mag = str(row['CodeMag'])
+            ip_address = str(row['ipaddress'])
+            
+            # Connect to the network share first if credentials available
+            if username and password:
+                connection_result = connect_to_network_share(ip_address, username, password)
+                
+                if not connection_result['success']:
+                    results.append({
+                        'CodeMag': code_mag,
+                        'IPAddress': ip_address,
+                        'FileName': filename,
+                        'Status': 'Failed',
+                        'DestinationPath': f'\\\\{ip_address}\\{directory_path}\\{filename}',
+                        'Error': f"Échec de connexion: {connection_result['message']}"
+                    })
+                    continue
+            
+            # Construct destination path
+            if ip_address.startswith('\\\\'):
+                dest_path = os.path.join(ip_address, directory_path, filename)
+            else:
+                dest_path = os.path.join(f'\\\\{ip_address}', directory_path, filename)
+            
+            dest_path = os.path.normpath(dest_path)
+            
+            try:
+                # Create directory if it doesn't exist
+                dest_dir = os.path.dirname(dest_path)
+                os.makedirs(dest_dir, exist_ok=True)
+                
+                # Copy file
+                import shutil
+                shutil.copy2(file_path, dest_path)
+                
+                results.append({
+                    'CodeMag': code_mag,
+                    'IPAddress': ip_address,
+                    'FileName': filename,
+                    'Status': 'Success',
+                    'DestinationPath': dest_path,
+                    'Error': None
+                })
+                
+                logger.info(f"Transferred {index + 1}/{total}: {code_mag} - {ip_address} - {filename}")
+                
+            except Exception as e:
+                logger.error(f"Error transferring {filename} to {ip_address}: {str(e)}")
+                results.append({
+                    'CodeMag': code_mag,
+                    'IPAddress': ip_address,
+                    'FileName': filename,
+                    'Status': 'Failed',
+                    'DestinationPath': dest_path,
+                    'Error': str(e)
+                })
+        
+        return {'success': True, 'results': results}
+        
+    except Exception as e:
+        logger.error(f"Error in file transfer: {str(e)}")
+        return {'error': str(e)}
+    
 @app.route('/auth')
 def auth_page():
     try:
@@ -605,12 +829,14 @@ def test_connection():
         if not ip_address:
             return jsonify({'error': 'Adresse IP requise'}), 400
         
+        # Will use default credentials if username/password not provided
         result = connect_to_network_share(ip_address, username, password)
         
         if result['success']:
+            cred_info = " (credentials par défaut)" if (not username and USE_DEFAULT_CREDENTIALS) else ""
             return jsonify({
                 'success': True,
-                'message': f'Connexion réussie à \\\\{ip_address}'
+                'message': f'Connexion réussie à \\\\{ip_address}{cred_info}'
             })
         else:
             return jsonify({
@@ -639,6 +865,98 @@ def disconnect_all():
     
     except Exception as e:
         logger.error(f"Disconnect error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/test-bulk-connections', methods=['POST'])
+def test_bulk_connections():
+    """Test multiple network connections from Excel file"""
+    try:
+        data = request.get_json()
+        excel_filename = data.get('excel_file', '')
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+        
+        if not excel_filename:
+            return jsonify({'error': 'Fichier Excel requis'}), 400
+        
+        if not username or not password:
+            return jsonify({'error': 'Nom d\'utilisateur et mot de passe requis'}), 400
+        
+        # Get Excel file path from data folder
+        excel_path = os.path.join(app.config['DATA_FOLDER'], excel_filename)
+        
+        if not os.path.exists(excel_path):
+            return jsonify({'error': f'Fichier Excel introuvable: {excel_filename}'}), 400
+        
+        # Read Excel file
+        logger.info(f"Reading Excel file: {excel_path}")
+        df = pd.read_excel(excel_path)
+        
+        # Find the IP address column (flexible matching)
+        ip_column = None
+        for col in df.columns:
+            col_lower = str(col).lower()
+            if ('ip' in col_lower and 'address' in col_lower) or col_lower == 'ip' or col_lower == 'ip address' or col_lower == 'adresse ip':
+                ip_column = col
+                break
+        
+        if ip_column is None:
+            # List available columns for debugging
+            available_columns = ', '.join([str(col) for col in df.columns])
+            return jsonify({'error': f'Aucune colonne "IP Address" trouvée. Colonnes disponibles: {available_columns}'}), 400
+        
+        # Get unique IP addresses
+        ip_addresses = df[ip_column].dropna().unique().tolist()
+        
+        if len(ip_addresses) == 0:
+            return jsonify({'error': 'Aucune adresse IP trouvée dans le fichier Excel'}), 400
+        
+        logger.info(f"Found {len(ip_addresses)} IP addresses to test")
+        
+        # Test each connection
+        results = []
+        successful = 0
+        failed = 0
+        
+        for ip_address in ip_addresses:
+            ip_str = str(ip_address).strip()
+            if not ip_str or ip_str.lower() in ['nan', 'none', '']:
+                continue
+                
+            logger.info(f"Testing connection to {ip_str}")
+            result = connect_to_network_share(ip_str, username, password)
+            
+            if result['success']:
+                successful += 1
+                status = 'Success'
+                message = result['message']
+            else:
+                failed += 1
+                status = 'Failed'
+                message = result['message']
+            
+            results.append({
+                'ip_address': ip_str,
+                'status': status,
+                'message': message
+            })
+        
+        logger.info(f"Bulk test completed: {successful} successful, {failed} failed out of {len(results)} total")
+        
+        return jsonify({
+            'success': True,
+            'summary': {
+                'total': len(results),
+                'successful': successful,
+                'failed': failed
+            },
+            'results': results
+        })
+    
+    except Exception as e:
+        logger.error(f"Bulk test error: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
@@ -703,8 +1021,6 @@ def transfer_file():
         file = request.files['file_to_transfer']
         excel_filename = request.form.get('excel_file')
         directory_path = request.form.get('directory_path')
-        username = request.form.get('username')
-        password = request.form.get('password')
         
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
@@ -726,8 +1042,8 @@ def transfer_file():
         if not os.path.exists(excel_path):
             return jsonify({'error': f'Excel file not found: {excel_filename}'}), 400
         
-        # Transfer the file with credentials
-        result = transfer_file_to_servers(temp_filepath, excel_path, directory_path, username, password)
+        # Transfer the file (will use default credentials)
+        result = transfer_file_to_servers(temp_filepath, excel_path, directory_path)
         
         if 'error' in result:
             return jsonify({'error': result['error']}), 400
@@ -804,6 +1120,9 @@ if __name__ == '__main__':
         print(f"Template folder: {app.template_folder}")
         print(f"Upload folder: {app.config['UPLOAD_FOLDER']}")
         print(f"Report folder: {app.config['REPORT_FOLDER']}")
+        print(f"Default credentials enabled: {USE_DEFAULT_CREDENTIALS}")
+        if USE_DEFAULT_CREDENTIALS:
+            print(f"Default username: {DEFAULT_USERNAME}")
         print("=" * 60)
         
         # Open browser in a separate thread

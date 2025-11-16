@@ -100,7 +100,8 @@
         }
 
         .form-group input[type="text"],
-        .form-group input[type="password"] {
+        .form-group input[type="password"],
+        .form-group select {
             width: 100%;
             padding: 12px 15px;
             border: 2px solid #e0e0e0;
@@ -110,7 +111,8 @@
         }
 
         .form-group input[type="text"]:focus,
-        .form-group input[type="password"]:focus {
+        .form-group input[type="password"]:focus,
+        .form-group select:focus {
             outline: none;
             border-color: #dc2626;
         }
@@ -280,6 +282,76 @@
         .test-buttons button {
             flex: 1;
         }
+
+        .result-item {
+            background: white;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-item.success {
+            border-left-color: #16a34a;
+            background: #f0fdf4;
+        }
+
+        .result-item.error {
+            border-left-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .result-ip {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .result-status {
+            font-size: 13px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .result-status.success {
+            background: #16a34a;
+            color: white;
+        }
+
+        .result-status.error {
+            background: #dc2626;
+            color: white;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #dc2626, #f59e0b);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .section-divider {
+            margin: 40px 0;
+            border-top: 2px solid #f0f0f0;
+            padding-top: 30px;
+        }
     </style>
 </head>
 <body>
@@ -309,7 +381,7 @@
                 <h4>ℹ️ À propos de cette fonctionnalité</h4>
                 <p>
                     Cette page vous permet de tester vos identifiants réseau avant de lancer des opérations de vérification ou de transfert. 
-                    Les identifiants testés ici peuvent être utilisés sur les autres pages pour accéder aux partages réseau protégés.
+                    Vous pouvez tester une connexion unique ou tester plusieurs serveurs en masse à partir d'un fichier Excel.
                 </p>
             </div>
 
@@ -332,7 +404,8 @@
                 </div>
             </div>
 
-            <!-- Test Connection Section -->
+            <!-- Single Test Connection Section -->
+            <h3 style="color: #dc2626; margin-bottom: 15px;">🔌 Test d'une Connexion Unique</h3>
             <div class="form-group">
                 <label for="testIp">Adresse IP ou Nom du Serveur</label>
                 <input type="text" id="testIp" placeholder="ex: 192.168.1.100 ou serveur01">
@@ -348,8 +421,47 @@
                 </button>
             </div>
 
+            <!-- Bulk Test Section -->
+            <div class="section-divider">
+                <h3 style="color: #dc2626; margin-bottom: 20px;">📊 Test en Masse depuis Excel</h3>
+                
+                <div class="info-box">
+                    <h4>💡 Comment utiliser cette fonctionnalité</h4>
+                    <p>
+                        Sélectionnez un fichier Excel contenant une liste de serveurs à tester. Le fichier doit avoir une colonne 
+                        nommée "IP Address" ou "Adresse IP" avec les adresses IP ou noms de serveurs. Les identifiants saisis ci-dessus 
+                        seront utilisés pour tester toutes les connexions.
+                    </p>
+                </div>
+
+                <div class="form-group">
+                    <label for="excelFile">Fichier Excel avec les serveurs</label>
+                    <select id="excelFile">
+                        <option value="">Chargement des fichiers...</option>
+                    </select>
+                    <p class="help-text">Sélectionnez un fichier Excel contenant les adresses IP</p>
+                </div>
+
+                <button class="btn" id="bulkTestBtn" onclick="testBulkConnections()">
+                    🚀 Tester Tous les Serveurs
+                </button>
+
+                <!-- Bulk Test Results -->
+                <div id="bulkTestResults" style="margin-top: 30px; display: none;">
+                    <h4 style="margin-bottom: 15px; color: #dc2626;">Résultats des Tests</h4>
+                    
+                    <!-- Progress Bar -->
+                    <div class="progress-bar" id="progressBar" style="display: none;">
+                        <div class="progress-fill" id="progressFill">0%</div>
+                    </div>
+                    
+                    <div class="alert info" style="display: block;" id="bulkSummary"></div>
+                    <div id="bulkResultsContainer"></div>
+                </div>
+            </div>
+
             <!-- Active Connections -->
-            <div class="connections-list" id="connectionsList">
+            <div class="connections-list section-divider" id="connectionsList">
                 <h3 style="margin-bottom: 15px;">Connexions Actives</h3>
                 <div id="connectionsContainer">
                     <p style="color: #666; text-align: center; padding: 20px;">Aucune connexion active</p>
@@ -421,6 +533,104 @@
             }
         }
 
+        async function testBulkConnections() {
+            const bulkTestBtn = document.getElementById('bulkTestBtn');
+            const excelFile = document.getElementById('excelFile').value;
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!excelFile) {
+                showMessage('⚠️ Veuillez sélectionner un fichier Excel', 'error');
+                return;
+            }
+
+            if (!username || !password) {
+                showMessage('⚠️ Veuillez entrer le nom d\'utilisateur et le mot de passe', 'error');
+                return;
+            }
+
+            bulkTestBtn.disabled = true;
+            bulkTestBtn.innerHTML = '<span class="spinner"></span> Test en cours...';
+
+            // Show progress bar and results section
+            const progressBar = document.getElementById('progressBar');
+            const progressFill = document.getElementById('progressFill');
+            const resultsSection = document.getElementById('bulkTestResults');
+            const resultsContainer = document.getElementById('bulkResultsContainer');
+            const summaryEl = document.getElementById('bulkSummary');
+
+            resultsSection.style.display = 'block';
+            progressBar.style.display = 'block';
+            resultsContainer.innerHTML = '';
+
+            try {
+                const response = await fetch('/test-bulk-connections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        excel_file: excelFile,
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showMessage(`❌ ${data.error}`, 'error');
+                    resultsSection.style.display = 'none';
+                    return;
+                }
+
+                // Update summary
+                const total = data.summary.total;
+                const successful = data.summary.successful;
+                const failed = data.summary.failed;
+                const successRate = ((successful / total) * 100).toFixed(1);
+
+                summaryEl.innerHTML = `
+                    <strong>Résumé:</strong> ${total} serveurs testés | 
+                    ✅ ${successful} réussis (${successRate}%) | 
+                    ❌ ${failed} échoués
+                `;
+
+                // Update progress bar
+                progressFill.style.width = '100%';
+                progressFill.textContent = '100% - Terminé';
+
+                // Display results
+                data.results.forEach(result => {
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = `result-item ${result.status === 'Success' ? 'success' : 'error'}`;
+                    
+                    resultDiv.innerHTML = `
+                        <div>
+                            <div class="result-ip">\\\\${result.ip_address}</div>
+                            <small>${result.message}</small>
+                        </div>
+                        <span class="result-status ${result.status === 'Success' ? 'success' : 'error'}">
+                            ${result.status === 'Success' ? '✓ Succès' : '✗ Échec'}
+                        </span>
+                    `;
+                    
+                    resultsContainer.appendChild(resultDiv);
+                });
+
+                showMessage(`✅ Test terminé: ${successful}/${total} connexions réussies`, 'success');
+                loadActiveConnections();
+
+            } catch (error) {
+                showMessage(`❌ Erreur lors du test en masse: ${error.message}`, 'error');
+                resultsSection.style.display = 'none';
+            } finally {
+                bulkTestBtn.disabled = false;
+                bulkTestBtn.textContent = '🚀 Tester Tous les Serveurs';
+                progressBar.style.display = 'none';
+            }
+        }
+
         async function disconnectAll() {
             const disconnectBtn = document.getElementById('disconnectBtn');
             
@@ -473,8 +683,28 @@
             }
         }
 
+        async function loadExcelFiles() {
+            try {
+                const response = await fetch('/get-excel-files');
+                const data = await response.json();
+                
+                const select = document.getElementById('excelFile');
+                
+                if (data.success && data.files.length > 0) {
+                    select.innerHTML = '<option value="">-- Sélectionnez un fichier --</option>' +
+                        data.files.map(file => `<option value="${file}">${file}</option>`).join('');
+                } else {
+                    select.innerHTML = '<option value="">Aucun fichier Excel trouvé</option>';
+                }
+            } catch (error) {
+                console.error('Error loading Excel files:', error);
+                document.getElementById('excelFile').innerHTML = '<option value="">Erreur de chargement</option>';
+            }
+        }
+
         // Load active connections on page load
         loadActiveConnections();
+        loadExcelFiles();
 
         // Refresh connections every 10 seconds
         setInterval(loadActiveConnections, 10000);
