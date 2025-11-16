@@ -683,16 +683,46 @@
             }
         }
 
+        // State persistence functions
+        function saveFormState() {
+            localStorage.setItem('auth_username', document.getElementById('username').value);
+            // Note: We do NOT save password for security reasons
+            localStorage.setItem('auth_testIp', document.getElementById('testIp').value);
+            localStorage.setItem('auth_excelFile', document.getElementById('excelFile').value);
+        }
+
+        function restoreFormState() {
+            const username = localStorage.getItem('auth_username');
+            const testIp = localStorage.getItem('auth_testIp');
+            const excelFile = localStorage.getItem('auth_excelFile');
+
+            if (username) document.getElementById('username').value = username;
+            if (testIp) document.getElementById('testIp').value = testIp;
+
+            // Excel file will be restored after loading the list
+            if (excelFile) {
+                setTimeout(() => {
+                    const select = document.getElementById('excelFile');
+                    if (select.querySelector(`option[value="${excelFile}"]`)) {
+                        select.value = excelFile;
+                    }
+                }, 100);
+            }
+        }
+
         async function loadExcelFiles() {
             try {
                 const response = await fetch('/get-excel-files');
                 const data = await response.json();
-                
+
                 const select = document.getElementById('excelFile');
-                
+
                 if (data.success && data.files.length > 0) {
                     select.innerHTML = '<option value="">-- Sélectionnez un fichier --</option>' +
                         data.files.map(file => `<option value="${file}">${file}</option>`).join('');
+
+                    // Restore saved selection
+                    restoreFormState();
                 } else {
                     select.innerHTML = '<option value="">Aucun fichier Excel trouvé</option>';
                 }
@@ -701,6 +731,16 @@
                 document.getElementById('excelFile').innerHTML = '<option value="">Erreur de chargement</option>';
             }
         }
+
+        // Add event listeners for auto-save
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('username').addEventListener('input', saveFormState);
+            document.getElementById('testIp').addEventListener('input', saveFormState);
+            document.getElementById('excelFile').addEventListener('change', saveFormState);
+
+            // Restore form state on page load
+            restoreFormState();
+        });
 
         // Load active connections on page load
         loadActiveConnections();

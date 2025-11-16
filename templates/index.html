@@ -421,6 +421,32 @@
     <script>
         let reportFilename = '';
 
+        // State persistence functions
+        function saveFormState() {
+            localStorage.setItem('fileChecker_excelFile', document.getElementById('excelFile').value);
+            localStorage.setItem('fileChecker_filename', document.getElementById('filename').value);
+            localStorage.setItem('fileChecker_directoryPath', document.getElementById('directoryPath').value);
+        }
+
+        function restoreFormState() {
+            const excelFile = localStorage.getItem('fileChecker_excelFile');
+            const filename = localStorage.getItem('fileChecker_filename');
+            const directoryPath = localStorage.getItem('fileChecker_directoryPath');
+
+            if (filename) document.getElementById('filename').value = filename;
+            if (directoryPath) document.getElementById('directoryPath').value = directoryPath;
+
+            // Excel file will be restored after loading the list
+            if (excelFile) {
+                setTimeout(() => {
+                    const select = document.getElementById('excelFile');
+                    if (select.querySelector(`option[value="${excelFile}"]`)) {
+                        select.value = excelFile;
+                    }
+                }, 100);
+            }
+        }
+
         // Charger les fichiers Excel du dossier data au chargement de la page
         async function loadExcelFiles() {
             try {
@@ -437,6 +463,9 @@
                         option.textContent = file;
                         select.appendChild(option);
                     });
+
+                    // Restore saved selection
+                    restoreFormState();
                 } else {
                     select.innerHTML = '<option value="">Aucun fichier Excel trouvé dans le dossier data</option>';
                     showError('Aucun fichier Excel trouvé dans le dossier data. Veuillez ajouter des fichiers Excel dans le dossier data.');
@@ -446,6 +475,13 @@
                 showError('Erreur lors du chargement des fichiers Excel : ' + error.message);
             }
         }
+
+        // Add event listeners for auto-save
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('excelFile').addEventListener('change', saveFormState);
+            document.getElementById('filename').addEventListener('input', saveFormState);
+            document.getElementById('directoryPath').addEventListener('input', saveFormState);
+        });
 
         // Charger les fichiers au chargement de la page
         loadExcelFiles();
